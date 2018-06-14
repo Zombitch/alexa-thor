@@ -1,0 +1,23 @@
+{
+  "name": "alexa-thor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zombitch/alexa-thor.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Zombitch/alexa-thor/issues"
+  },
+  "homepage": "https://github.com/Zombitch/alexa-thor#readme",
+  "dependencies": {
+    "ask-sdk-core": "^2.0.5",
+    "ask-sdk-model": "^1.3.0"
+  }
+}
