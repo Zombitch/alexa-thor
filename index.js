@@ -1,37 +1,5 @@
 const Alexa = require('ask-sdk-core');
-const http = require('http');
-
-function httpGet(options) {
-  return new Promise(((resolve, reject) => {
-
-    const request = http.request(options, (response) => {
-      response.setEncoding('utf8');
-      let returnData = '';
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        return reject(new Error(`${response.statusCode}: ${response.req.getHeader('host')} ${response.req.path}`));
-      }
-
-      response.on('data', (chunk) => {
-        returnData += chunk;
-      });
-
-      response.on('end', () => {
-        resolve(JSON.parse(returnData));
-      });
-
-      response.on('error', (error) => {
-        reject(error);
-      });
-    });
-
-    request.on('error', function (error) {
-      reject(error);
-    });
-
-    request.end();
-  }));
-}
+const httpHelper = require("./helpers/httpHelper");
 
 const LightHandler = {
   canHandle(handlerInput) {
@@ -40,16 +8,19 @@ const LightHandler = {
   },
   handle(handlerInput) {
     var intent = handlerInput.requestEnvelope.request.intent;
+    var percentageValue = typeof intent.slots.percentage.value == "undefined" ? 99 : intent.slots.percentage.value;
+    var transcodedValue = intent.slots.state.value.includes("allumer") ? percentageValue : 0;
+    var homeLocation = typeof intent.slots.homeLocation.value == "undefined" ? "null" : intent.slots.homeLocation.value;
 
     var options = {
       host: "thorestla.ddns.net",
       port: 1809,
-      path: "/alexa/zwave/skillID/"+intent.slots.state.value+"/light/0",
+      path: "/alexa/zwave/skillID/"+encodeURIComponent("lumière")+"/"+encodeURIComponent(homeLocation)+"/"+transcodedValue,
       method: "GET"
     };
 
     return new Promise((resolve, reject) => {
-     httpGet(options).then((response) => {
+     httpHelper.getData(options).then((response) => {
        resolve(handlerInput.responseBuilder.speak(response.msg).getResponse());
      }).catch((error) => {
         resolve(handlerInput.responseBuilder.speak(error.toString()).getResponse());
@@ -58,46 +29,35 @@ const LightHandler = {
   },
 }
 
-const RollerShutterCloseHandler = {
+const RollerShutterHandler = {
 
   canHandle(handlerInput) {
     const request = handlerInput.requestEnvelope.request;
-    return (request.type === 'IntentRequest' && request.intent.name === 'RollerShutterCloseIntent');
+    return (request.type === 'IntentRequest' && request.intent.name === 'RollerShutterIntent');
   },
   handle(handlerInput) {
+    var intent = handlerInput.requestEnvelope.request.intent;
+    var percentageValue = 0;
+
+    if(intent.slots.rollerState.value.includes("ouvrir")){
+      if(typeof intent.slots.percentage.value != "undefined") percentageValue = intent.slots.percentage.value;
+      else percentageValue = 99;
+    }else{
+      if(typeof intent.slots.percentage.value != "undefined") percentageValue = 100-intent.slots.percentage.value;
+      else percentageValue = 0;
+    }
+
+    if(percentageValue > 100) percentageValue = 99;
+
     var options = {
       host: "thorestla.ddns.net",
       port: 1809,
-      path: "/alexa/zwave/skillID/alterValue/volet/0",
+      path: "/alexa/zwave/skillID/volet/null/"+percentageValue,
       method: "GET"
     };
 
     return new Promise((resolve, reject) => {
-     httpGet(options).then((response) => {
-       resolve(handlerInput.responseBuilder.speak(response.msg).getResponse());
-     }).catch((error) => {
-        resolve(handlerInput.responseBuilder.speak(error.toString()).getResponse());
-      });
-    });
-  },
-};
-
-const RollerShutterOpenHandler = {
-
-  canHandle(handlerInput) {
-    const request = handlerInput.requestEnvelope.request;
-    return (request.type === 'IntentRequest' && request.intent.name === 'RollerShutterOpenIntent');
-  },
-  handle(handlerInput) {
-    var options = {
-      host: "thorestla.ddns.net",
-      port: 1809,
-      path: "/alexa/zwave/skillID/alterValue/volet/99",
-      method: "GET"
-    };
-
-    return new Promise((resolve, reject) => {
-     httpGet(options).then((response) => {
+     httpHelper.getData(options).then((response) => {
        resolve(handlerInput.responseBuilder.speak(response.msg).getResponse());
      }).catch((error) => {
         resolve(handlerInput.responseBuilder.speak(error.toString()).getResponse());
@@ -109,7 +69,6 @@ const RollerShutterOpenHandler = {
 const skillBuilder = Alexa.SkillBuilders.custom();
 exports.handler = skillBuilder
   .addRequestHandlers(
-    RollerShutterCloseHandler,
-    RollerShutterOpenHandler,
+    RollerShutterHandler,
     LightHandler
   ).lambda();
